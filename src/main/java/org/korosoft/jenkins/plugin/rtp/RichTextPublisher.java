@@ -48,6 +48,8 @@ import org.apache.commons.io.IOUtils;
 import org.apache.commons.lang.StringUtils;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
+import org.kohsuke.accmod.Restricted;
+import org.kohsuke.accmod.restrictions.NoExternalUse;
 import org.kohsuke.stapler.AncestorInPath;
 import org.kohsuke.stapler.DataBoundConstructor;
 import org.kohsuke.stapler.HttpResponse;
@@ -75,11 +77,12 @@ public class RichTextPublisher extends Recorder {
     private String failedText;
     private Boolean unstableAsStable = true;
     private Boolean failedAsStable = true;
-    private String parserName;
+    private static String parserName;
 
-    private transient MarkupParser markupParser;
+    private transient static MarkupParser markupParser;
 
     @DataBoundConstructor
+    @Restricted(NoExternalUse.class)
     public RichTextPublisher(String stableText, String unstableText, String failedText, Boolean unstableAsStable, Boolean failedAsStable, String parserName) {
         this.stableText = stableText;
         this.unstableText = unstableText;
@@ -144,7 +147,7 @@ public class RichTextPublisher extends Recorder {
         this.parserName = parserName;
         this.markupParser = DescriptorImpl.markupParsers.get(parserName);
     }
-
+    
     @Override
     public boolean perform(AbstractBuild<?, ?> build, Launcher launcher, BuildListener listener) throws InterruptedException, IOException {
         final String text;
@@ -180,18 +183,28 @@ public class RichTextPublisher extends Recorder {
         AbstractRichTextAction action = new BuildRichTextAction(build, getMarkupParser().parse(replaceVars(text, vars)));
         build.addAction(action);
         build.save();
-
+        
         return true;
+
+    }
+    
+    public static boolean publishRichText(Run<?, ?> build, FilePath workspace, Launcher launcher, TaskListener listener, String text, Class<?> publisherClass) throws IOException {
+    	
+    	AbstractRichTextAction action = new BuildRichTextAction(build, text);
+    	build.addAction(action);
+        build.save();
+        
+    	return true;
     }
 
-    private MarkupParser getMarkupParser() {
+    private static MarkupParser getMarkupParser() {
         if (markupParser == null) {
             markupParser = DescriptorImpl.markupParsers.get(parserName);
         }
         return markupParser;
     }
 
-    private String replaceVars(String publishText, Map<String, String> vars) {
+    private static String replaceVars(String publishText, Map<String, String> vars) {
 
         for (Map.Entry<String, String> var : vars.entrySet()) {
             String key = String.format("${%s}", var.getKey());
